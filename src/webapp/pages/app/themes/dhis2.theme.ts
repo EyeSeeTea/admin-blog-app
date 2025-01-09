@@ -2,6 +2,7 @@ import { createTheme } from "@material-ui/core/styles";
 
 // Color palette from https://projects.invisionapp.com/share/A7LT4TJYETS#/screens/302550228_Color
 const colors = {
+    gradientPrimary: "linear-gradient(90deg, rgba(10,160,244,1) 0%, rgba(240,247,252,1) 100%)",
     accentPrimary: "#1976d2",
     accentPrimaryDark: "#004BA0",
     accentPrimaryLight: "#63A4FF",
@@ -24,12 +25,18 @@ const colors = {
     warning: "#F19C02",
     positive: "#3D9305",
     info: "#EAF4FF",
+
+    blue: "#0089d6",
+    darkBlue: "#0360a6",
 };
 
 const palette = {
     common: {
         white: colors.white,
         black: colors.black,
+        blue: colors.blue,
+        darkBlue: colors.darkBlue,
+        gradientPrimary: colors.gradientPrimary,
     },
     action: {
         active: colors.greyBlack,
