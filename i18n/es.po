@@ -1,12 +1,15 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: i18next-conv\n"
-"POT-Creation-Date: 2024-06-26T10:58:19.149Z\n"
+"POT-Creation-Date: 2025-01-09T12:20:56.795Z\n"
 "PO-Revision-Date: 2018-10-25T09:02:35.143Z\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1)\n"
+
+msgid "Field cannot be blank"
+msgstr ""
 
 msgid "Add"
 msgstr "Añadir"
@@ -14,17 +17,105 @@ msgstr "Añadir"
 msgid "List"
 msgstr "Listar"
 
+msgid "Co-funded by the European Union"
+msgstr ""
+
+msgid "About us"
+msgstr ""
+
+msgid "WHO Barcelona Office for Health Systems Financing"
+msgstr ""
+
+msgid "Contact our office"
+msgstr ""
+
+msgid "Sant Pau Art Nouveau Site (La Mercè)"
+msgstr ""
+
+msgid "Sant Antoni Maria Claret 167"
+msgstr ""
+
+msgid "08025 Barcelona, Spain"
+msgstr ""
+
+msgid "Tel: +34 673 290 861"
+msgstr ""
+
 msgid "Back"
 msgstr "Volver"
 
 msgid "Help"
 msgstr "Ayuda"
 
-msgid "Hello {{name}}"
-msgstr "Hola {{name}}"
-
-msgid "Detail page"
+msgid "Date"
 msgstr ""
 
-msgid "Section"
+msgid "Title"
+msgstr ""
+
+msgid "Image"
+msgstr ""
+
+#, fuzzy
+msgid "Description"
 msgstr "Sección"
+
+msgid "Edit"
+msgstr ""
+
+msgid "Delete"
+msgstr ""
+
+msgid "Blog"
+msgstr ""
+
+msgid "Create new post"
+msgstr ""
+
+msgid "Delete post"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Are you sure you want to delete post {{post}} ?"
+msgstr ""
+
+msgid "Post {{post}} deleted"
+msgstr ""
+
+msgid "Error deleting post {{post}}"
+msgstr ""
+
+msgid "Edit post"
+msgstr ""
+
+msgid "Create post"
+msgstr ""
+
+msgid "Created at: {{createdDate}}"
+msgstr ""
+
+msgid "Last updated: {{updatedDate}}"
+msgstr ""
+
+msgid "Upload image"
+msgstr ""
+
+msgid "Write"
+msgstr ""
+
+msgid "Preview"
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Post {{post}} saved"
+msgstr ""
+
+msgid "Error saving post {{post}}"
+msgstr ""
+
+#~ msgid "Hello {{name}}"
+#~ msgstr "Hola {{name}}"

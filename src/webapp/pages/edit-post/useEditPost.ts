@@ -1,0 +1,281 @@
+import { useCallback, useEffect, useState } from "react";
+
+import { Post } from "$/domain/entities/Post";
+import { Id } from "$/domain/entities/Ref";
+import {
+    ValidationError,
+    validationErrorMessages,
+} from "$/domain/entities/validation-error/ValidationError";
+import i18n from "$/utils/i18n";
+import { Maybe } from "$/utils/ts-utils";
+import { useAppContext } from "$/webapp/contexts/app-context";
+import { RouteName, useRoutes } from "$/webapp/hooks/useRoutes";
+import { FileResource } from "$/domain/entities/FileResource";
+
+type State = {
+    postState: PostLoadState;
+    globalMessage: Maybe<GlobalMessage>;
+    handleStateChange: (key: keyof PostState, value: PostState[keyof PostState]) => void;
+    isImageLoading: boolean;
+    handleRemoveImage: () => void;
+    handleImageUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
+    onSavePost: () => void;
+    onClickCancel: () => void;
+    errors: ValidationError<Post>[];
+    getErrorMessage: (key: keyof PostState) => string | undefined;
+};
+
+type PostState = {
+    id: Id;
+    title: string;
+    description: string;
+    createdDate: string;
+    updatedDate: string;
+    imageUrl: string;
+    imageResourceId: Id;
+    content: string;
+};
+
+export type GlobalMessage = {
+    text: string;
+    type: "warning" | "success" | "error";
+};
+
+export type PostStateLoaded = {
+    kind: "loaded";
+    data: PostState;
+};
+
+export type PostStateLoading = {
+    kind: "loading";
+};
+
+export type PostStateError = {
+    kind: "error";
+    message: string;
+};
+
+export type PostLoadState = PostStateLoaded | PostStateLoading | PostStateError;
+
+export function useEditPost(id: Maybe<Id>): State {
+    const { compositionRoot } = useAppContext();
+    const { goTo } = useRoutes();
+
+    const [postState, setPostState] = useState<PostLoadState>({ kind: "loading" });
+    const [globalMessage, setGlobalMessage] = useState<Maybe<GlobalMessage>>();
+    const [errors, setErrors] = useState<ValidationError<Post>[]>([]);
+    const [isImageLoading, setIsImageLoading] = useState(false);
+
+    useEffect(() => {
+        if (id) {
+            compositionRoot.posts.getById.execute(id).run(
+                (postData: Post) => {
+                    setPostState({
+                        kind: "loaded",
+                        data: mapPostToPostState(postData),
+                    });
+                },
+                error => {
+                    console.error(error);
+                    setPostState({
+                        kind: "error",
+                        message: i18n.t(`Error loading post: ${error}`),
+                    });
+                    setGlobalMessage({
+                        text: i18n.t(`Error loading post: ${error}`),
+                        type: "error",
+                    });
+                }
+            );
+        } else {
+            setPostState({
+                kind: "loaded",
+                data: getInitialPostState(),
+            });
+        }
+    }, [compositionRoot.posts.getById, id]);
+
+    const handleStateChange = useCallback(
+        (key: keyof PostState, value: PostState[keyof PostState]) => {
+            if (postState.kind !== "loaded") return;
+
+            const newPostState: PostState = {
+                ...postState.data,
+                [key]: value,
+            };
+
+            const cleanErrors = errors.filter(error => error.property !== key);
+            setErrors(cleanErrors);
+
+            setPostState({
+                kind: "loaded",
+                data: newPostState,
+            });
+        },
+        [errors, postState]
+    );
+
+    const handleImageChange = useCallback(
+        (imageUrl: string, imageResourceId: Id) => {
+            if (postState.kind !== "loaded") return;
+
+            const newPostState: PostState = {
+                ...postState.data,
+                imageUrl: imageUrl,
+                imageResourceId: imageResourceId,
+            };
+
+            const cleanErrors = errors.filter(
+                error => error.property !== imageUrl && error.property !== imageResourceId
+            );
+            setErrors(cleanErrors);
+
+            setPostState({
+                kind: "loaded",
+                data: newPostState,
+            });
+        },
+        [errors, postState]
+    );
+
+    const handleImageUpload = useCallback(
+        (event: React.ChangeEvent<HTMLInputElement>) => {
+            if (event.target.files && event.target.files[0]) {
+                const file = event.target.files[0];
+                const fileResource: FileResource = {
+                    id: "",
+                    name: file.name,
+                    data: new Blob([file], { type: file.type }),
+                    domain: "DATA_VALUE",
+                };
+                setIsImageLoading(true);
+                compositionRoot.fileResources.save.execute(fileResource).run(
+                    fileResourceWithId => {
+                        handleImageChange(URL.createObjectURL(file), fileResourceWithId.id);
+                        setIsImageLoading(false);
+                    },
+                    error => {
+                        console.error(error);
+                        setIsImageLoading(false);
+                        setGlobalMessage({
+                            text: i18n.t(`Error uploading image: ${error}`),
+                            type: "error",
+                        });
+                    }
+                );
+            }
+        },
+        [compositionRoot.fileResources.save, handleImageChange]
+    );
+
+    const handleRemoveImage = useCallback(() => {
+        handleImageChange("", "");
+    }, [handleImageChange]);
+
+    const getErrorMessage = useCallback(
+        (key: keyof PostState) => {
+            return errors
+                .find(e => e.property === key)
+                ?.errors.map(e => validationErrorMessages[e]())
+                .join(", ");
+        },
+        [errors]
+    );
+
+    const onSavePost = useCallback(() => {
+        if (postState.kind !== "loaded") return;
+
+        const result = Post.createPost({
+            id: postState.data.id,
+            title: postState.data.title,
+            description: postState.data.description,
+            createdDate: postState.data.createdDate,
+            updatedDate: new Date().toISOString(),
+            imageUrl: postState.data.imageUrl,
+            imageResourceId: postState.data.imageResourceId,
+            content: postState.data.content,
+        });
+
+        const errors: ValidationError<Post>[] = result.match({
+            success: () => [],
+            error: errors => errors,
+        });
+
+        if (errors.length > 0) {
+            setErrors(errors);
+            return;
+        } else {
+            const post: Post = result.match({
+                success: post => post,
+                error: () => {
+                    throw new Error("Unexpected error");
+                },
+            });
+            setErrors([]);
+
+            compositionRoot.posts.save.execute(post).run(
+                () => {
+                    setGlobalMessage({
+                        text: i18n.t(`Post {{post}} saved`, {
+                            post: post.title,
+                        }),
+                        type: "success",
+                    });
+                    goTo(RouteName.POSTS_LIST);
+                },
+                err => {
+                    console.debug(err);
+                    setGlobalMessage({
+                        text: i18n.t(`Error saving post {{post}}`, {
+                            post: post.title,
+                        }),
+                        type: "error",
+                    });
+                }
+            );
+        }
+    }, [postState, goTo, compositionRoot.posts.save]);
+
+    const onClickCancel = useCallback(() => {
+        goTo(RouteName.POSTS_LIST);
+    }, [goTo]);
+
+    return {
+        postState: postState,
+        globalMessage: globalMessage,
+        handleStateChange: handleStateChange,
+        isImageLoading: isImageLoading,
+        handleRemoveImage: handleRemoveImage,
+        handleImageUpload: handleImageUpload,
+        onSavePost: onSavePost,
+        onClickCancel: onClickCancel,
+        errors: errors,
+        getErrorMessage: getErrorMessage,
+    };
+}
+
+function mapPostToPostState(post: Post): PostState {
+    return {
+        id: post.id,
+        title: post.title,
+        description: post.description,
+        createdDate: post.createdDate,
+        updatedDate: post.updatedDate,
+        imageUrl: post.imageUrl,
+        imageResourceId: post.imageResourceId,
+        content: post.content,
+    };
+}
+
+function getInitialPostState(): PostState {
+    return {
+        id: "",
+        title: "",
+        description: "",
+        createdDate: "",
+        updatedDate: "",
+        imageUrl: "",
+        imageResourceId: "",
+        content: "",
+    };
+}
