@@ -11,7 +11,8 @@ export function createPost(id: string): Post {
         description: `Description test ${id}`,
         createdDate: "2021-01-01",
         updatedDate: "2021-01-01",
-        image: `Image test ${id}`,
+        imageUrl: `https://example.com/image-${id}.png`,
+        imageResourceId: `image-${id}`,
         content: `Content test ${id}`,
     }).match({
         success: post => post,

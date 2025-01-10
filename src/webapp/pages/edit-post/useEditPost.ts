@@ -10,17 +10,17 @@ import i18n from "$/utils/i18n";
 import { Maybe } from "$/utils/ts-utils";
 import { useAppContext } from "$/webapp/contexts/app-context";
 import { RouteName, useRoutes } from "$/webapp/hooks/useRoutes";
+import { FileResource } from "$/domain/entities/FileResource";
 
 type State = {
     postState: PostLoadState;
     globalMessage: Maybe<GlobalMessage>;
-    handleContentChange: (content: string) => void;
-    handleDescriptionChange: (description: string) => void;
-    handleImageChange: (image: string) => void;
-    handleTitleChange: (title: string) => void;
+    handleStateChange: (key: keyof PostState, value: PostState[keyof PostState]) => void;
+    isImageLoading: boolean;
+    handleRemoveImage: () => void;
+    handleImageUpload: (event: React.ChangeEvent<HTMLInputElement>) => void;
     onSavePost: () => void;
     onClickCancel: () => void;
-    onRemoveImage: () => void;
     errors: ValidationError<Post>[];
     getErrorMessage: (key: keyof PostState) => string | undefined;
 };
@@ -31,7 +31,8 @@ type PostState = {
     description: string;
     createdDate: string;
     updatedDate: string;
-    image: string;
+    imageUrl: string;
+    imageResourceId: Id;
     content: string;
 };
 
@@ -63,6 +64,7 @@ export function useEditPost(id: Maybe<Id>): State {
     const [postState, setPostState] = useState<PostLoadState>({ kind: "loading" });
     const [globalMessage, setGlobalMessage] = useState<Maybe<GlobalMessage>>();
     const [errors, setErrors] = useState<ValidationError<Post>[]>([]);
+    const [isImageLoading, setIsImageLoading] = useState(false);
 
     useEffect(() => {
         if (id) {
@@ -113,36 +115,61 @@ export function useEditPost(id: Maybe<Id>): State {
         [errors, postState]
     );
 
-    const handleTitleChange = useCallback(
-        (title: string) => {
-            handleStateChange("title", title);
-        },
-        [handleStateChange]
-    );
-
-    const handleDescriptionChange = useCallback(
-        (description: string) => {
-            handleStateChange("description", description);
-        },
-        [handleStateChange]
-    );
-
     const handleImageChange = useCallback(
-        (image: string) => {
-            handleStateChange("image", image);
+        (imageUrl: string, imageResourceId: Id) => {
+            if (postState.kind !== "loaded") return;
+
+            const newPostState: PostState = {
+                ...postState.data,
+                imageUrl: imageUrl,
+                imageResourceId: imageResourceId,
+            };
+
+            const cleanErrors = errors.filter(
+                error => error.property !== imageUrl && error.property !== imageResourceId
+            );
+            setErrors(cleanErrors);
+
+            setPostState({
+                kind: "loaded",
+                data: newPostState,
+            });
         },
-        [handleStateChange]
+        [errors, postState]
     );
 
-    const handleContentChange = useCallback(
-        (content: string) => {
-            handleStateChange("content", content);
+    const handleImageUpload = useCallback(
+        (event: React.ChangeEvent<HTMLInputElement>) => {
+            if (event.target.files && event.target.files[0]) {
+                const file = event.target.files[0];
+                const fileResource: FileResource = {
+                    id: "",
+                    name: file.name,
+                    data: new Blob([file], { type: file.type }),
+                    domain: "DATA_VALUE",
+                };
+                setIsImageLoading(true);
+                compositionRoot.fileResources.save.execute(fileResource).run(
+                    fileResourceWithId => {
+                        handleImageChange(URL.createObjectURL(file), fileResourceWithId.id);
+                        setIsImageLoading(false);
+                    },
+                    error => {
+                        console.error(error);
+                        setIsImageLoading(false);
+                        setGlobalMessage({
+                            text: i18n.t(`Error uploading image: ${error}`),
+                            type: "error",
+                        });
+                    }
+                );
+            }
         },
-        [handleStateChange]
+        [compositionRoot.fileResources.save, handleImageChange]
     );
 
-    const onRemoveImage = useCallback(() => {
-        handleImageChange("");
+    const handleRemoveImage = useCallback(() => {
+        handleImageChange("", "");
     }, [handleImageChange]);
 
     const getErrorMessage = useCallback(
@@ -164,7 +191,8 @@ export function useEditPost(id: Maybe<Id>): State {
             description: postState.data.description,
             createdDate: postState.data.createdDate,
             updatedDate: new Date().toISOString(),
-            image: postState.data.image,
+            imageUrl: postState.data.imageUrl,
+            imageResourceId: postState.data.imageResourceId,
             content: postState.data.content,
         });
 
@@ -215,13 +243,12 @@ export function useEditPost(id: Maybe<Id>): State {
     return {
         postState: postState,
         globalMessage: globalMessage,
-        handleTitleChange: handleTitleChange,
-        handleDescriptionChange: handleDescriptionChange,
-        handleImageChange: handleImageChange,
-        handleContentChange: handleContentChange,
+        handleStateChange: handleStateChange,
+        isImageLoading: isImageLoading,
+        handleRemoveImage: handleRemoveImage,
+        handleImageUpload: handleImageUpload,
         onSavePost: onSavePost,
         onClickCancel: onClickCancel,
-        onRemoveImage: onRemoveImage,
         errors: errors,
         getErrorMessage: getErrorMessage,
     };
@@ -234,7 +261,8 @@ function mapPostToPostState(post: Post): PostState {
         description: post.description,
         createdDate: post.createdDate,
         updatedDate: post.updatedDate,
-        image: post.image,
+        imageUrl: post.imageUrl,
+        imageResourceId: post.imageResourceId,
         content: post.content,
     };
 }
@@ -246,7 +274,8 @@ function getInitialPostState(): PostState {
         description: "",
         createdDate: "",
         updatedDate: "",
-        image: "",
+        imageUrl: "",
+        imageResourceId: "",
         content: "",
     };
 }

@@ -64,19 +64,23 @@ export class PostD2Repository implements PostRepository {
                 pageSize: paging.pageSize,
             })
         ).flatMap(response => {
-            const posts = response.instances.map(d2Event => this.buildPost(d2Event));
+            try {
+                const posts = response.instances.map(d2Event => this.buildPost(d2Event));
 
-            const paginatedPosts: PaginatedReponse<Post> = {
-                objects: posts,
-                pager: {
-                    total: response.total || 0,
-                    page: response.page,
-                    pageSize: response.pageSize,
-                    pageCount: response.total ? Math.ceil(response.total / paging.pageSize) : 0,
-                },
-            };
+                const paginatedPosts: PaginatedReponse<Post> = {
+                    objects: posts,
+                    pager: {
+                        total: response.total || 0,
+                        page: response.page,
+                        pageSize: response.pageSize,
+                        pageCount: response.total ? Math.ceil(response.total / paging.pageSize) : 0,
+                    },
+                };
 
-            return Future.success(paginatedPosts);
+                return Future.success(paginatedPosts);
+            } catch (error) {
+                return Future.error(new Error(`${error}`));
+            }
         });
     }
 
@@ -128,8 +132,6 @@ export class PostD2Repository implements PostRepository {
     }
 
     save(post: Post): FutureData<Post> {
-        // TODO: Handle image upload too
-
         const d2TrackerEvent: D2TrackerEvent = this.mapPostToD2EventTracker(post);
 
         return Future.success(post);
@@ -163,7 +165,7 @@ export class PostD2Repository implements PostRepository {
             updatedAt: new Date().toISOString(),
             dataValues: [
                 { dataElement: BLOG_DATA_ELEMENTS.title, value: post.title },
-                { dataElement: BLOG_DATA_ELEMENTS.image, value: post.image },
+                { dataElement: BLOG_DATA_ELEMENTS.image, value: post.imageResourceId },
                 { dataElement: BLOG_DATA_ELEMENTS.description, value: post.description },
                 { dataElement: BLOG_DATA_ELEMENTS.content, value: post.content },
             ],
@@ -171,6 +173,7 @@ export class PostD2Repository implements PostRepository {
         };
     }
 
+    // TODO: build post correctly, this is for testing
     private buildPost(d2Event: D2TrackerEvent): Post {
         const id = d2Event.event;
         const createdDateString = d2Event.occurredAt;
@@ -179,9 +182,11 @@ export class PostD2Repository implements PostRepository {
         const title =
             d2Event.dataValues.find(dv => dv.dataElement === BLOG_DATA_ELEMENTS.title)?.value ||
             "Title test";
-        const image =
+
+        const imageUrl = `${this.api.baseUrl}/api/events/files?dataElementUid=${BLOG_DATA_ELEMENTS.image}&eventUid=${id}`;
+        const imageResourceId =
             d2Event.dataValues.find(dv => dv.dataElement === BLOG_DATA_ELEMENTS.image)?.value ||
-            "/dhis2/api/events/files?dataElementUid=fIrafA0Qbh3&eventUid=losyBXc2SGp";
+            "eaV6o9kGKJa";
 
         const description =
             d2Event.dataValues.find(dv => dv.dataElement === BLOG_DATA_ELEMENTS.description)
@@ -207,13 +212,14 @@ Este es un ejemplo de **Markdown** con _React_.
             markdownContentTest;
 
         return Post.createPost({
-            id,
-            title,
-            description,
+            id: id,
+            title: title,
+            description: description,
             createdDate: createdDateString,
             updatedDate: updatedDateString ?? createdDateString,
-            image,
-            content,
+            imageUrl: imageUrl,
+            imageResourceId: imageResourceId,
+            content: content,
         }).match({
             success: post => post,
             error: errors => {

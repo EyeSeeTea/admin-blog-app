@@ -1,13 +1,4 @@
-import {
-    Backdrop,
-    Box,
-    Button,
-    CircularProgress,
-    Tab,
-    Tabs,
-    TextField,
-    Typography,
-} from "@material-ui/core";
+import { Box, Button, Tab, Tabs, TextField, Typography } from "@material-ui/core";
 import CloseIcon from "@material-ui/icons/Close";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import styled from "styled-components";
@@ -22,6 +13,8 @@ import { Maybe } from "$/utils/ts-utils";
 import { Id } from "$/domain/entities/Ref";
 import { Layout } from "$/webapp/components/layout/Layout";
 import { IconButton } from "$/webapp/components/icon-button/IconButton";
+import { Loader } from "$/webapp/components/loader/Loader";
+import LoaderContainer from "$/webapp/components/loader/LoaderContainer";
 
 const DATE_FORMAT = "DD MMMM YYYY";
 
@@ -31,21 +24,17 @@ export const EditPostPage: React.FC = React.memo(() => {
     const {
         globalMessage,
         postState,
-        handleTitleChange,
-        handleDescriptionChange,
-        handleImageChange,
-        handleContentChange,
+        handleStateChange,
+        isImageLoading,
+        handleImageUpload,
+        handleRemoveImage,
         onSavePost,
         onClickCancel,
-        onRemoveImage,
         errors,
         getErrorMessage,
     } = useEditPost(id);
 
     const [tabIndex, setTabIndex] = useState(0);
-
-    // TODO: Move this to custom hook and implement it well
-    const [image, setImage] = useState<File | null>(null);
 
     useEffect(() => {
         if (!globalMessage) return;
@@ -60,23 +49,6 @@ export const EditPostPage: React.FC = React.memo(() => {
     const handleTabChange = useCallback((event: React.ChangeEvent<{}>, newValue: number) => {
         setTabIndex(newValue);
     }, []);
-
-    // TODO: Move this to custom hook and implement it well
-    const handleImageUpload = useCallback(
-        (event: React.ChangeEvent<HTMLInputElement>) => {
-            if (event.target.files && event.target.files[0]) {
-                setImage(event.target.files[0]);
-                handleImageChange(event.target.files[0].name);
-            }
-        },
-        [handleImageChange]
-    );
-
-    // TODO: Move this to custom hook and implement it well
-    const handleRemoveImage = useCallback(() => {
-        setImage(null);
-        onRemoveImage();
-    }, [onRemoveImage]);
 
     const markdownComponents = useMemo(() => {
         return {
@@ -126,9 +98,7 @@ export const EditPostPage: React.FC = React.memo(() => {
     return (
         <Layout title={id ? i18n.t("Edit post") : i18n.t("Create post")}>
             {postState.kind !== "loaded" ? (
-                <Backdrop open style={{ color: "#fff", zIndex: 1 }}>
-                    <CircularProgress color="primary" />
-                </Backdrop>
+                <Loader />
             ) : (
                 <PostContainer>
                     {postState.data.id && (
@@ -159,7 +129,7 @@ export const EditPostPage: React.FC = React.memo(() => {
                             variant="outlined"
                             margin="normal"
                             value={postState.data.title}
-                            onChange={e => handleTitleChange(e.target.value)}
+                            onChange={e => handleStateChange("title", e.target.value)}
                             error={errors.some(e => e.property === "title")}
                         />
 
@@ -173,54 +143,53 @@ export const EditPostPage: React.FC = React.memo(() => {
                             variant="outlined"
                             margin="normal"
                             multiline
-                            rows={3}
+                            minRows={3}
                             value={postState.data.description}
-                            onChange={e => handleDescriptionChange(e.target.value)}
+                            onChange={e => handleStateChange("description", e.target.value)}
                             error={errors.some(e => e.property === "description")}
                         />
 
                         <ErrorText>{getErrorMessage("description")}</ErrorText>
                     </FieldContainer>
 
-                    <FieldContainer>
-                        <Box mt={2}>
-                            {image || postState.data.image ? (
-                                <ImageContainer>
-                                    <IconButton
-                                        className="remove-file"
-                                        icon={<CloseIcon />}
-                                        ariaLabel="Delete current image"
-                                        onClick={handleRemoveImage}
-                                    />
-
-                                    <Image
-                                        src={
-                                            image
-                                                ? URL.createObjectURL(image)
-                                                : postState.data.image
-                                        }
-                                        alt="Post image"
-                                    />
-
-                                    <ErrorText>{getErrorMessage("image")}</ErrorText>
-                                </ImageContainer>
-                            ) : (
-                                <UploadButtonContainer>
-                                    <Button variant="contained" color="primary" component="label">
-                                        {i18n.t("Upload image")}
-                                        <input
-                                            type="file"
-                                            hidden
-                                            accept="image/*"
-                                            onChange={handleImageUpload}
+                    <LoaderContainer loading={isImageLoading}>
+                        <FieldContainer>
+                            <Box mt={2}>
+                                {postState.data.imageUrl ? (
+                                    <ImageContainer>
+                                        <IconButton
+                                            className="remove-file"
+                                            icon={<CloseIcon />}
+                                            ariaLabel="Delete current image"
+                                            onClick={handleRemoveImage}
                                         />
-                                    </Button>
 
-                                    <ErrorText>{getErrorMessage("image")}</ErrorText>
-                                </UploadButtonContainer>
-                            )}
-                        </Box>
-                    </FieldContainer>
+                                        <Image src={postState.data.imageUrl} alt="Post image" />
+
+                                        <ErrorText>{getErrorMessage("imageUrl")}</ErrorText>
+                                    </ImageContainer>
+                                ) : (
+                                    <UploadButtonContainer>
+                                        <Button
+                                            variant="contained"
+                                            color="primary"
+                                            component="label"
+                                        >
+                                            {i18n.t("Upload image")}
+                                            <input
+                                                type="file"
+                                                hidden
+                                                accept="image/*"
+                                                onChange={handleImageUpload}
+                                            />
+                                        </Button>
+
+                                        <ErrorText>{getErrorMessage("imageUrl")}</ErrorText>
+                                    </UploadButtonContainer>
+                                )}
+                            </Box>
+                        </FieldContainer>
+                    </LoaderContainer>
 
                     <FieldContainer>
                         <Tabs
@@ -241,7 +210,8 @@ export const EditPostPage: React.FC = React.memo(() => {
                                     variant="outlined"
                                     multiline
                                     value={postState.data.content}
-                                    onChange={e => handleContentChange(e.target.value)}
+                                    onChange={e => handleStateChange("content", e.target.value)}
+                                    minRows={10}
                                 />
                             )}
 

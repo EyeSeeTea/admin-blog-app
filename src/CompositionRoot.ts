@@ -10,12 +10,17 @@ import { UserRepository } from "./domain/repositories/UserRepository";
 import { GetCurrentUserUseCase } from "./domain/usecases/GetCurrentUserUseCase";
 import { D2Api } from "./types/d2-api";
 import { SavePostUseCase } from "$/domain/usecases/SavePostUseCase";
+import { SaveFileResourceUseCase } from "$/domain/usecases/SaveFileResourceUseCase";
+import { FileResourcesRepository } from "$/domain/repositories/FileResourcesRepository";
+import { FileResourcesD2Repository } from "$/data/repositories/FileResourcesD2Repository";
+import { FileResourcesTestRepository } from "$/data/repositories/FileResourcesTestRepository";
 
 export type CompositionRoot = ReturnType<typeof getCompositionRoot>;
 
 type Repositories = {
     usersRepository: UserRepository;
     postsRepository: PostRepository;
+    fileResourcesRepository: FileResourcesRepository;
 };
 
 function getCompositionRoot(repositories: Repositories) {
@@ -29,6 +34,9 @@ function getCompositionRoot(repositories: Repositories) {
             delete: new DeletePostUseCase(repositories.postsRepository),
             save: new SavePostUseCase(repositories.postsRepository),
         },
+        fileResources: {
+            save: new SaveFileResourceUseCase(repositories.fileResourcesRepository),
+        },
     };
 }
 
@@ -36,6 +44,7 @@ export function getWebappCompositionRoot(api: D2Api) {
     const repositories: Repositories = {
         usersRepository: new UserD2Repository(api),
         postsRepository: new PostD2Repository(api),
+        fileResourcesRepository: new FileResourcesD2Repository(api),
     };
 
     return getCompositionRoot(repositories);
@@ -45,6 +54,7 @@ export function getTestCompositionRoot() {
     const repositories: Repositories = {
         usersRepository: new UserTestRepository(),
         postsRepository: new PostTestRepository(),
+        fileResourcesRepository: new FileResourcesTestRepository(),
     };
 
     return getCompositionRoot(repositories);

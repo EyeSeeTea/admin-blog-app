@@ -10,7 +10,8 @@ export interface PostAttrs {
     description: string;
     createdDate: string;
     updatedDate: string;
-    image: string;
+    imageUrl: string;
+    imageResourceId: Id;
     content: string;
 }
 
@@ -20,7 +21,7 @@ export class Post extends Struct<PostAttrs>() {
     }
 
     private static validateAndCreate(attrs: PostAttrs): Either<ValidationError<Post>[], Post> {
-        const { id, title, description, image, content } = attrs;
+        const { id, title, description, imageUrl, imageResourceId, content } = attrs;
 
         const errors: ValidationError<Post>[] = [
             { property: "id" as const, errors: validateRequired(id), value: id },
@@ -30,7 +31,12 @@ export class Post extends Struct<PostAttrs>() {
                 errors: validateRequired(description),
                 value: description,
             },
-            { property: "image" as const, errors: validateRequired(image), value: image },
+            { property: "imageUrl" as const, errors: validateRequired(imageUrl), value: imageUrl },
+            {
+                property: "imageResourceId" as const,
+                errors: validateRequired(imageResourceId),
+                value: imageResourceId,
+            },
             { property: "content" as const, errors: validateRequired(content), value: content },
         ].filter(validation => validation.errors.length > 0);
 

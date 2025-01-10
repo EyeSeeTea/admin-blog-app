@@ -63,12 +63,12 @@ export const AdminBlogPage: React.FC = React.memo(() => {
                     sortable: false,
                 },
                 {
-                    name: "image",
+                    name: "imageUrl",
                     text: i18n.t("Image"),
                     sortable: false,
                     getValue: post => {
-                        return post.image ? (
-                            <img src={post.image} alt={post.title} width={100} />
+                        return post.imageUrl ? (
+                            <img src={post.imageUrl} alt={post.title} width={100} />
                         ) : null;
                     },
                 },
